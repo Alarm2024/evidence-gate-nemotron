@@ -1,0 +1,21 @@
+{
+  "finding_id": "EV-001",
+  "prompt_hash": "seed-replay-ev001-no-network",
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "fix_diff": "--- a/demo_app/config.py\n+++ b/demo_app/config.py\n@@ -1,8 +1,10 @@\n \"\"\"Application configuration (EV-001: hard-coded secret).\"\"\"\n \n+import os\n+\n # BUG EV-001: secret must come from environment, not source control.\n-API_SECRET = \"hardcoded-demo-secret-do-not-ship\"\n+API_SECRET = os.environ.get(\"API_SECRET\", \"\")\n \n \n def get_api_secret() -> str:\n     return API_SECRET\n",
+  "test_before": {
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": ""
+  },
+  "test_after": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "verdict": "PROVEN",
+  "reason": "Exploit test failed before and passed after; diff stayed in scope",
+  "affected_files": [
+    "demo_app/config.py"
+  ]
+}

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Evidence Gate — Replay Viewer</title>
+  <style>
+    :root {
+      font-family: system-ui, sans-serif;
+      color: #0f172a;
+      background: #f8fafc;
+    }
+    body { max-width: 52rem; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.5rem; }
+    .verdict {
+      font-size: 1.25rem;
+      font-weight: 700;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      display: inline-block;
+    }
+    .proven { background: #dcfce7; color: #166534; }
+    .not { background: #fee2e2; color: #991b1b; }
+    .scope { background: #fef3c7; color: #92400e; }
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+    }
+    section { margin: 1.5rem 0; }
+    label { font-weight: 600; display: block; margin-bottom: 0.25rem; }
+    select { margin-bottom: 1rem; padding: 0.35rem; }
+  </style>
+</head>
+<body>
+  <h1>Evidence Gate — offline replay</h1>
+  <p>Step through a stored run: exploit test before/after, fix diff, and verdict. No API calls.</p>
+
+  <label for="pick">Replay</label>
+  <select id="pick" aria-label="Choose replay"></select>
+
+  <section>
+    <span id="verdict" class="verdict proven">—</span>
+    <p id="reason"></p>
+  </section>
+
+  <section>
+    <h2>Metadata</h2>
+    <ul id="meta"></ul>
+  </section>
+
+  <section>
+    <h2>Fix diff</h2>
+    <pre id="diff"></pre>
+  </section>
+
+  <section>
+    <h2>Exploit test — before fix</h2>
+    <pre id="before"></pre>
+  </section>
+
+  <section>
+    <h2>Exploit test — after fix</h2>
+    <pre id="after"></pre>
+  </section>
+
+  <script id="replay-data" type="application/json">
+[
+  {
+    "finding_id": "EV-001",
+    "prompt_hash": "seed-replay-ev001-no-network",
+    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "fix_diff": "--- a/demo_app/config.py\n+++ b/demo_app/config.py\n@@ -1,8 +1,10 @@\n \"\"\"Application configuration (EV-001: hard-coded secret).\"\"\"\n \n+import os\n+\n # BUG EV-001: secret must come from environment, not source control.\n-API_SECRET = \"hardcoded-demo-secret-do-not-ship\"\n+API_SECRET = os.environ.get(\"API_SECRET\", \"\")\n \n \n def get_api_secret() -> str:\n     return API_SECRET\n",
+    "test_before": {
+      "exit_code": 1,
+      "stdout": "FAILED tests/test_ev001_secret.py::test_no_hardcoded_secret_in_config\n",
+      "stderr": ""
+    },
+    "test_after": {
+      "exit_code": 0,
+      "stdout": "1 passed\n",
+      "stderr": ""
+    },
+    "verdict": "PROVEN",
+    "reason": "Exploit test failed before and passed after; diff stayed in scope",
+    "affected_files": ["demo_app/config.py"]
+  }
+]
+  </script>
+  <script>
+    const replays = JSON.parse(document.getElementById("replay-data").textContent);
+    const pick = document.getElementById("pick");
+    replays.forEach((r, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = r.finding_id + " — " + r.verdict;
+      pick.appendChild(opt);
+    });
+
+    function fmtTest(t) {
+      const lines = ["exit_code: " + t.exit_code];
+      if (t.stdout) lines.push("stdout:\n" + t.stdout);
+      if (t.stderr) lines.push("stderr:\n" + t.stderr);
+      return lines.join("\n");
+    }
+
+    function render(idx) {
+      const r = replays[idx];
+      const v = document.getElementById("verdict");
+      v.textContent = r.verdict;
+      v.className = "verdict " + (
+        r.verdict === "PROVEN" ? "proven" :
+        r.verdict === "OUT OF SCOPE" ? "scope" : "not"
+      );
+      document.getElementById("reason").textContent = r.reason;
+      document.getElementById("meta").innerHTML = [
+        "<li><strong>Model</strong> " + r.model + "</li>",
+        "<li><strong>Prompt hash</strong> <code>" + r.prompt_hash + "</code></li>",
+        "<li><strong>Files</strong> " + (r.affected_files || []).join(", ") + "</li>"
+      ].join("");
+      document.getElementById("diff").textContent = r.fix_diff;
+      document.getElementById("before").textContent = fmtTest(r.test_before);
+      document.getElementById("after").textContent = fmtTest(r.test_after);
+    }
+
+    pick.addEventListener("change", () => render(Number(pick.value)));
+    render(0);
+  </script>
+</body>
+</html>
