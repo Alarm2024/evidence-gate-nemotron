@@ -1,7 +1,9 @@
-# Nebius / NVIDIA feedback (draft)
+# Nebius Token Factory / Nemotron feedback — Draft
 
-1. **OpenAI-compatible surface** — Using the official Python client with a single `base_url` swap made Evidence Gate integration straightforward; model listing and chat completions behaved as documented.
-2. **Model IDs** — Nemotron main vs nano naming is clear once listed; a short “recommended for code repair” tag in the models API would help agents pick defaults faster.
-3. **Diff-shaped outputs** — Security fix workflows want unified diffs; response_format or a documented “unified diff only” prompt pattern in Token Factory examples would reduce parse failures.
-4. **Rate and latency** — Larger Nemotron models are strong but slow for tight CI loops; the nano model as a `--fast` path is useful; exposing typical tokens/sec in the dashboard would set expectations.
-5. **Offline replay story** — Hackathon judges appreciate reproducibility; pairing Token Factory runs with hashed prompts (no secrets in artifacts) matches how we ship `replays/*.json` for demo and CI.
+**Status: Draft.** Not yet confirmed by a keyed run from this repo. Points marked *to confirm* need the owner's first real run before sending.
+
+1. **OpenAI-compatible base URL keeps the client small.** Evidence Gate talks to Token Factory with the standard `openai` Python client and only a `base_url` change, so the model client is about 100 lines and easy to mock in tests. *(Integration shape confirmed in code; response behavior to confirm.)*
+2. **Diff-only output is the hard part.** The gate needs exactly one unified diff. A documented prompt pattern or structured-output option for "return only a patch" would cut the regex parsing we do in `extract_diff`. *(To confirm how often Nemotron adds text around the diff.)*
+3. **Picking a model for code repair.** We hard-code a main and a fast Nemotron ID. A short "good for code edits" hint in the model list would help tools choose without trial and error.
+4. **Reproducibility needs a stable model version.** We store the model ID and a prompt hash in each replay. If an ID can point to updated weights over time, a version or snapshot field in the response would make replays easier to compare. *(Unknown whether IDs are pinned; to confirm in docs.)*
+5. **Latency for the fast path.** *(To fill in after a keyed run: measured time per EV run for main vs `--fast`. No numbers yet.)*

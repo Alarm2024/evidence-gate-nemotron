@@ -145,3 +145,46 @@ def test_evaluate_gate_matrix():
     assert evaluate_gate(ok, ok, in_scope).verdict == Verdict.NOT_PROVEN
     assert evaluate_gate(fail, fail, in_scope).verdict == Verdict.NOT_PROVEN
     assert evaluate_gate(fail, ok, out_scope).verdict == Verdict.OUT_OF_SCOPE
+
+
+SEED_FIXES = REPO / "tests" / "fixtures" / "seed_fixes"
+
+
+@pytest.mark.parametrize("fid", ["EV-001", "EV-002", "EV-003"])
+def test_gate_proven_for_each_seed(fid):
+    diff = (SEED_FIXES / f"{fid}.diff").read_text(encoding="utf-8")
+    model = MockFixModel(diff)
+    result = run_gate(REPO, REPO / f"findings/seed/{fid}.md", model, model_name="mock/seed")
+    assert result.outcome.verdict == Verdict.PROVEN
+    assert len(model.calls) == 1
+
+
+@pytest.mark.parametrize(
+    "fid,other",
+    [("EV-002", "demo_app/files.py"), ("EV-003", "demo_app/db.py")],
+)
+def test_gate_out_of_scope_for_each_seed(fid, other):
+    diff = (SEED_FIXES / f"{fid}.diff").read_text(encoding="utf-8")
+    other_name = other
+    extra = (
+        f"--- a/{other_name}\n+++ b/{other_name}\n@@ -1,1 +1,2 @@\n"
+        + (REPO / other_name).read_text(encoding="utf-8").splitlines()[0] + "\n"
+        + "+# unrelated edit\n"
+    )
+    result = run_gate(REPO, REPO / f"findings/seed/{fid}.md", MockFixModel(diff + extra), model_name="mock/oos")
+    assert result.outcome.verdict == Verdict.OUT_OF_SCOPE
+
+
+def test_gate_not_proven_when_diff_does_not_apply():
+    bad = "--- a/demo_app/db.py\n+++ b/demo_app/db.py\n@@ -1,1 +1,1 @@\n-no such line\n+still nothing\n"
+    result = run_gate(REPO, REPO / "findings/seed/EV-002.md", MockFixModel(bad), model_name="mock/bad")
+    assert result.outcome.verdict == Verdict.NOT_PROVEN
+
+
+def test_gate_never_modifies_repo_tree():
+    before = {p: (REPO / p).read_text(encoding="utf-8") for p in ("demo_app/config.py", "demo_app/db.py", "demo_app/files.py")}
+    for fid in ("EV-001", "EV-002", "EV-003"):
+        diff = (SEED_FIXES / f"{fid}.diff").read_text(encoding="utf-8")
+        run_gate(REPO, REPO / f"findings/seed/{fid}.md", MockFixModel(diff), model_name="mock/seed")
+    after = {p: (REPO / p).read_text(encoding="utf-8") for p in before}
+    assert before == after

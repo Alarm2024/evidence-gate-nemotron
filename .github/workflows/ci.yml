@@ -5,9 +5,14 @@ on:
     branches: [main, "cursor/**"]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      NEBIUS_API_KEY: ""
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -17,10 +22,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-      - name: Pytest
+      - name: Pytest (mocked model, network blocked in replay tests)
         run: pytest -q
-      - name: Replay CLI (offline)
+      - name: Replay CLI offline (no key, sockets blocked) — EV-001, EV-002, EV-003
+        env:
+          PYTHONPATH: tests/netblock
         run: |
-          python -m evidence_gate run \
-            --finding findings/seed/EV-001.md \
-            --replay replays/EV-001.json
+          unset NEBIUS_API_KEY
+          for id in EV-001 EV-002 EV-003; do
+            python -m evidence_gate run --replay "replays/${id}.json"
+          done
+      - name: Secret scan (key patterns and auth headers)
+        run: |
+          if git grep -nIE '(sk-[A-Za-z0-9_-]{16,}|Bearer [A-Za-z0-9._-]{16,}|Authorization:|x-api-key|api_key *= *["'"'"'][^"'"'"' ]+)' -- . ':!.github/workflows/ci.yml' ':!tests/test_replay_cli.py'; then
+            echo "Possible secret found"; exit 1
+          fi

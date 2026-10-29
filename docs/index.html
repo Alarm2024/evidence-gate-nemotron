@@ -37,7 +37,8 @@
 </head>
 <body>
   <h1>Evidence Gate — offline replay</h1>
-  <p>Step through a stored run: exploit test before/after, fix diff, and verdict. No API calls.</p>
+  <p>Step through a stored run: exploit test before/after, fix diff, and verdict. All data is inlined in this page; it makes no network calls.</p>
+  <p><small>Bundled seed replays use hand-written fix diffs run through the real gate (mocked model). They are not model output.</small></p>
 
   <label for="pick">Replay</label>
   <select id="pick" aria-label="Choose replay"></select>
@@ -71,22 +72,66 @@
 [
   {
     "finding_id": "EV-001",
-    "prompt_hash": "seed-replay-ev001-no-network",
-    "model": "nvidia/nemotron-3-super-120b-a12b",
+    "prompt_hash": "0f6a9aeea21de32f0cbb928f47fbafc8072e5807d683a6229414627d576c63e6",
+    "model": "seed/hand-written-fix (not model output)",
     "fix_diff": "--- a/demo_app/config.py\n+++ b/demo_app/config.py\n@@ -1,8 +1,10 @@\n \"\"\"Application configuration (EV-001: hard-coded secret).\"\"\"\n \n+import os\n+\n # BUG EV-001: secret must come from environment, not source control.\n-API_SECRET = \"hardcoded-demo-secret-do-not-ship\"\n+API_SECRET = os.environ.get(\"API_SECRET\", \"\")\n \n \n def get_api_secret() -> str:\n     return API_SECRET\n",
     "test_before": {
       "exit_code": 1,
-      "stdout": "FAILED tests/test_ev001_secret.py::test_no_hardcoded_secret_in_config\n",
+      "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______________________ test_no_hardcoded_secret_in_config ______________________\ntests/test_ev001_secret.py:22: in test_no_hardcoded_secret_in_config\n    raise AssertionError(\nE   AssertionError: API_SECRET is hard-coded; use os.environ instead\n=========================== short test summary info ============================\nFAILED tests/test_ev001_secret.py::test_no_hardcoded_secret_in_config - Asser...\n1 failed in 0.01s\n",
       "stderr": ""
     },
     "test_after": {
       "exit_code": 0,
-      "stdout": "1 passed\n",
+      "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
       "stderr": ""
     },
     "verdict": "PROVEN",
     "reason": "Exploit test failed before and passed after; diff stayed in scope",
-    "affected_files": ["demo_app/config.py"]
+    "affected_files": [
+      "demo_app/config.py"
+    ]
+  },
+  {
+    "finding_id": "EV-002",
+    "prompt_hash": "3abab41aded452b1eb0ece86b37750056afa5fc016729e70787193ca57cff0f8",
+    "model": "seed/hand-written-fix (not model output)",
+    "fix_diff": "--- a/demo_app/db.py\n+++ b/demo_app/db.py\n@@ -17,9 +17,8 @@ def get_user_display_name(user_id: str) -> str:\n             \"CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL)\"\n         )\n         conn.commit()\n-        # BUG EV-002: string interpolation enables SQL injection.\n-        query = f\"SELECT name FROM users WHERE id = '{user_id}'\"\n-        cur.execute(query)\n+        # EV-002 fix: parameterized query; user input is never interpolated.\n+        cur.execute(\"SELECT name FROM users WHERE id = ?\", (user_id,))\n         row = cur.fetchone()\n         return row[0] if row else \"\"\n     finally:\n",
+    "test_before": {
+      "exit_code": 1,
+      "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______________________ test_db_uses_parameterized_queries ______________________\ntests/test_ev002_sqli.py:14: in test_db_uses_parameterized_queries\n    assert \"f\\\"SELECT\" not in source and \"f'SELECT\" not in source, (\nE   AssertionError: SQL built with f-string; use parameterized execute()\nE   assert ('f\"SELECT' not in '\"\"\"Tiny dat...nn.close()\\n'\nE     \nE     'f\"SELECT' is contained here:\nE         query = f\"SELECT name FROM users WHERE id = '{user_id}'\"\nE     ?           ++++++++\nE               cur.execute(query)\nE               row = cur.fetchone()\nE               return row[0] if row else \"\"\nE           finally:\nE               conn.close())\n=========================== short test summary info ============================\nFAILED tests/test_ev002_sqli.py::test_db_uses_parameterized_queries - Asserti...\n1 failed in 0.01s\n",
+      "stderr": ""
+    },
+    "test_after": {
+      "exit_code": 0,
+      "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+      "stderr": ""
+    },
+    "verdict": "PROVEN",
+    "reason": "Exploit test failed before and passed after; diff stayed in scope",
+    "affected_files": [
+      "demo_app/db.py"
+    ]
+  },
+  {
+    "finding_id": "EV-003",
+    "prompt_hash": "59aa274ffecb13b4586b5098cac746b37bfb128f2af9ee1bb87ce8c597301740",
+    "model": "seed/hand-written-fix (not model output)",
+    "fix_diff": "--- a/demo_app/files.py\n+++ b/demo_app/files.py\n@@ -9,6 +9,9 @@ _STORAGE = Path(__file__).resolve().parent / \"storage\"\n \n def read_user_file(relative_name: str) -> str:\n     _STORAGE.mkdir(parents=True, exist_ok=True)\n-    # BUG EV-003: no normalization allows path traversal.\n-    target = _STORAGE / relative_name\n+    # EV-003 fix: resolve the path and require it to stay under storage.\n+    root = _STORAGE.resolve()\n+    target = (root / relative_name).resolve()\n+    if not target.is_relative_to(root):\n+        raise ValueError(\"Path escapes storage root\")\n     return target.read_text(encoding=\"utf-8\")\n",
+    "test_before": {
+      "exit_code": 1,
+      "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_________________________ test_path_traversal_blocked __________________________\ntests/test_ev003_path.py:16: in test_path_traversal_blocked\n    assert \"relative_to\" in lowered or \"is_relative_to\" in lowered or \"commonpath\" in lowered, (\nE   AssertionError: Storage root must be enforced after resolve()\nE   assert ('relative_to' in '\"\"\"file helpers (ev-003: path traversal).\"\"\"\\n\\nfrom __future__ import annotations\\n\\nfrom pathlib import path\\n\\n_st...ization allows path traversal.\\n    target = _storage / relative_name\\n    return target.read_text(encoding=\"utf-8\")\\n' or 'is_relative_to' in '\"\"\"file helpers (ev-003: path traversal).\"\"\"\\n\\nfrom __future__ import annotations\\n\\nfrom pathlib import path\\n\\n_st...ization allows path traversal.\\n    target = _storage / relative_name\\n    return target.read_text(encoding=\"utf-8\")\\n' or 'commonpath' in '\"\"\"file helpers (ev-003: path traversal).\"\"\"\\n\\nfrom __future__ import annotations\\n\\nfrom pathlib import path\\n\\n_st...ization allows path traversal.\\n    target = _storage / relative_name\\n    return target.read_text(encoding=\"utf-8\")\\n')\n=========================== short test summary info ============================\nFAILED tests/test_ev003_path.py::test_path_traversal_blocked - AssertionError...\n1 failed in 0.01s\n",
+      "stderr": ""
+    },
+    "test_after": {
+      "exit_code": 0,
+      "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+      "stderr": ""
+    },
+    "verdict": "PROVEN",
+    "reason": "Exploit test failed before and passed after; diff stayed in scope",
+    "affected_files": [
+      "demo_app/files.py"
+    ]
   }
 ]
   </script>

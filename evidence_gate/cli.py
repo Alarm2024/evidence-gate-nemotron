@@ -8,7 +8,6 @@ from pathlib import Path
 
 from evidence_gate import FAST_MODEL, MAIN_MODEL
 from evidence_gate.gate import make_live_model, run_gate, run_replay
-from evidence_gate.model_client import list_reachable_models
 
 
 def _repo_root() -> Path:
@@ -16,6 +15,8 @@ def _repo_root() -> Path:
 
 
 def cmd_models(_: argparse.Namespace) -> int:
+    from evidence_gate.model_client import list_reachable_models
+
     try:
         ids = list_reachable_models()
     except RuntimeError as exc:
@@ -33,10 +34,7 @@ def cmd_models(_: argparse.Namespace) -> int:
 
 def cmd_run(args: argparse.Namespace) -> int:
     root = _repo_root()
-    finding = Path(args.finding)
-    if not finding.is_file():
-        print(f"Finding not found: {finding}", file=sys.stderr)
-        return 1
+    recorded_verdict: str | None = None
 
     if args.replay:
         replay_path = Path(args.replay)
@@ -44,9 +42,22 @@ def cmd_run(args: argparse.Namespace) -> int:
             print(f"Replay not found: {replay_path}", file=sys.stderr)
             return 1
         result = run_replay(root, replay_path)
+        recorded_verdict = result.replay.verdict
         print(f"Replay file: {replay_path}")
+        print("Mode: offline replay (no API key, no network)")
     else:
-        model = make_live_model(fast=args.fast)
+        if not args.finding:
+            print("Either --finding or --replay is required", file=sys.stderr)
+            return 1
+        finding = Path(args.finding)
+        if not finding.is_file():
+            print(f"Finding not found: {finding}", file=sys.stderr)
+            return 1
+        try:
+            model = make_live_model(fast=args.fast)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
         result = run_gate(
             root,
             finding,
@@ -66,6 +77,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     print(result.before.stdout or result.before.stderr)
     print("--- test after ---")
     print(result.after.stdout or result.after.stderr)
+    if recorded_verdict is not None and recorded_verdict != result.outcome.verdict.value:
+        print(
+            f"Replay mismatch: recorded {recorded_verdict}, "
+            f"recomputed {result.outcome.verdict.value}",
+            file=sys.stderr,
+        )
+        return 3
     return 0 if result.outcome.verdict.value == "PROVEN" else 2
 
 
@@ -78,8 +96,8 @@ def build_parser() -> argparse.ArgumentParser:
     run_p = sub.add_parser("run", help="Run gate on a finding or replay file")
     run_p.add_argument(
         "--finding",
-        required=True,
-        help="Path to finding markdown (e.g. findings/seed/EV-001.md)",
+        help="Path to finding markdown (e.g. findings/seed/EV-001.md); "
+        "optional with --replay",
     )
     run_p.add_argument(
         "--replay",

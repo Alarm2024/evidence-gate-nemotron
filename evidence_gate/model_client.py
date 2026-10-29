@@ -7,8 +7,6 @@ import os
 import re
 from typing import Protocol
 
-from openai import OpenAI
-
 from evidence_gate import FAST_MODEL, MAIN_MODEL, NEBIUS_BASE_URL
 
 
@@ -25,7 +23,10 @@ def require_api_key() -> str:
     return key
 
 
-def make_client() -> OpenAI:
+def make_client():
+    """Build the Nebius client. The key is read only from NEBIUS_API_KEY."""
+    from openai import OpenAI  # imported lazily: replay mode never loads it
+
     return OpenAI(
         base_url=NEBIUS_BASE_URL,
         api_key=require_api_key(),

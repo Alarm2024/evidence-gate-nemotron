@@ -39,9 +39,13 @@ python -m evidence_gate run --finding findings/seed/EV-001.md
 # Fast model
 python -m evidence_gate run --finding findings/seed/EV-002.md --fast
 
-# Offline replay — no key, no network
-python -m evidence_gate run --finding findings/seed/EV-001.md --replay replays/EV-001.json
+# Offline replay — no key, no network (EV-001, EV-002, EV-003)
+python -m evidence_gate run --replay replays/EV-001.json
 ```
+
+Replay mode re-applies the stored diff in a temporary copy, reruns the exploit test, and recomputes the verdict. If it differs from the recorded verdict the CLI exits with code 3. Replay mode never imports the `openai` client.
+
+The bundled `replays/EV-00*.json` are **seed replays**: hand-written fix diffs (`tests/fixtures/seed_fixes/`) run through the real gate with a mocked model. They are not model output. A keyed run overwrites `replays/EV-xxx.json` with a Nemotron run. Rebuild seeds and the inlined site data with `python scripts/make_seed_replays.py`.
 
 ## Tests
 
@@ -49,9 +53,11 @@ python -m evidence_gate run --finding findings/seed/EV-001.md --replay replays/E
 pytest -q
 ```
 
+Tests use a mocked model and cover all three verdicts. Replay tests run the CLI with `NEBIUS_API_KEY` removed and with `tests/netblock/` on `PYTHONPATH`, which makes any socket connect or DNS lookup raise (also in pytest child processes). Exploit tests (`-m exploit`) are deselected from the default run because they fail on the vulnerable demo by design; the gate runs them, and `test_exploit_tests_fail_on_vulnerable_seed` checks they fail.
+
 ## Demo site
 
-Open [`docs/index.html`](docs/index.html) on GitHub Pages to step through a bundled replay in the browser (no external network calls).
+Open [`docs/index.html`](docs/index.html) on GitHub Pages to step through the bundled replays in the browser. Data is inlined; the page makes no network calls. Pages source: `main` branch, `/docs` folder.
 
 ## Hackathon
 

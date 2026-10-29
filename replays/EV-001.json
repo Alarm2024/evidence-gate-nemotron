@@ -1,16 +1,16 @@
 {
   "finding_id": "EV-001",
-  "prompt_hash": "seed-replay-ev001-no-network",
-  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "prompt_hash": "0f6a9aeea21de32f0cbb928f47fbafc8072e5807d683a6229414627d576c63e6",
+  "model": "seed/hand-written-fix (not model output)",
   "fix_diff": "--- a/demo_app/config.py\n+++ b/demo_app/config.py\n@@ -1,8 +1,10 @@\n \"\"\"Application configuration (EV-001: hard-coded secret).\"\"\"\n \n+import os\n+\n # BUG EV-001: secret must come from environment, not source control.\n-API_SECRET = \"hardcoded-demo-secret-do-not-ship\"\n+API_SECRET = os.environ.get(\"API_SECRET\", \"\")\n \n \n def get_api_secret() -> str:\n     return API_SECRET\n",
   "test_before": {
     "exit_code": 1,
-    "stdout": "",
+    "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______________________ test_no_hardcoded_secret_in_config ______________________\ntests/test_ev001_secret.py:22: in test_no_hardcoded_secret_in_config\n    raise AssertionError(\nE   AssertionError: API_SECRET is hard-coded; use os.environ instead\n=========================== short test summary info ============================\nFAILED tests/test_ev001_secret.py::test_no_hardcoded_secret_in_config - Asser...\n1 failed in 0.01s\n",
     "stderr": ""
   },
   "test_after": {
     "exit_code": 0,
-    "stdout": "",
+    "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
     "stderr": ""
   },
   "verdict": "PROVEN",
