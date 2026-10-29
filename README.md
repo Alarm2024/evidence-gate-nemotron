@@ -11,6 +11,8 @@ Each run yields **PROVEN**, **NOT PROVEN**, or **OUT OF SCOPE**, with a short re
 **Author:** Wyndham Heaven (elghaly) · **License:** MIT
 
 > **Note:** Upstream Exploit-to-Evidence demo code was not present in this repository; this project includes a rebuilt `demo_app` with seed findings **EV-001** (hard-coded secret), **EV-002** (SQL injection), and **EV-003** (path traversal).
+>
+> **The EV-001 secret is planted, not real.** `demo_app/config.py:4` holds the string `hardcoded-demo-secret-do-not-ship` on purpose: it is the bug EV-001 exists to find. It is not a credential for any service. The file is left as is because the seed fix (`tests/fixtures/seed_fixes/EV-001.diff`) and the replay `replays/EV-001.json` are recorded against it byte for byte.
 
 ## Models
 
