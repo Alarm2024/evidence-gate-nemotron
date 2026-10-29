@@ -1,0 +1,14 @@
+--- a/demo_app/config.py
++++ b/demo_app/config.py
+@@ -1,8 +1,10 @@
+ """Application configuration (EV-001: hard-coded secret)."""
+ 
++import os
++
+ # BUG EV-001: secret must come from environment, not source control.
+-API_SECRET = "hardcoded-demo-secret-do-not-ship"
++API_SECRET = os.environ.get("API_SECRET", "")
+ 
+ 
+ def get_api_secret() -> str:
+     return API_SECRET
