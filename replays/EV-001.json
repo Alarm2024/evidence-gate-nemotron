@@ -1,7 +1,7 @@
 {
   "finding_id": "EV-001",
-  "prompt_hash": "0f6a9aeea21de32f0cbb928f47fbafc8072e5807d683a6229414627d576c63e6",
-  "model": "seed/hand-written-fix (not model output)",
+  "prompt_hash": "4ce4fc48f72b030163822def396be93e8c560bbddb7c98f5c520bd0d51d80859",
+  "model": "seed (hand-written, mocked model)",
   "fix_diff": "--- a/demo_app/config.py\n+++ b/demo_app/config.py\n@@ -1,8 +1,10 @@\n \"\"\"Application configuration (EV-001: hard-coded secret).\"\"\"\n \n+import os\n+\n # BUG EV-001: secret must come from environment, not source control.\n-API_SECRET = \"hardcoded-demo-secret-do-not-ship\"\n+API_SECRET = os.environ.get(\"API_SECRET\", \"\")\n \n \n def get_api_secret() -> str:\n     return API_SECRET\n",
   "test_before": {
     "exit_code": 1,

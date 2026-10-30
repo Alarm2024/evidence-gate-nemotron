@@ -45,3 +45,17 @@ def test_inline_data_matches_replays():
 def test_pages_ready():
     assert (REPO / "docs" / ".nojekyll").is_file()
     assert _html().lstrip().lower().startswith("<!doctype html>")
+
+
+def test_verify_box_and_seed_cards():
+    html = _html()
+    assert "How to verify" in html
+    assert "seed-cards" in html
+    assert "seed (hand-written, mocked model)" in html
+
+
+def test_seed_replay_model_label():
+    label = "seed (hand-written, mocked model)"
+    for fid in IDS:
+        rec = json.loads((REPO / "replays" / f"{fid}.json").read_text(encoding="utf-8"))
+        assert rec["model"] == label, fid

@@ -1,7 +1,7 @@
 {
   "finding_id": "EV-002",
-  "prompt_hash": "3abab41aded452b1eb0ece86b37750056afa5fc016729e70787193ca57cff0f8",
-  "model": "seed/hand-written-fix (not model output)",
+  "prompt_hash": "6e26d62915b2bb69a64a482ab8c4241830e44d573270e994de9a4aec482221d7",
+  "model": "seed (hand-written, mocked model)",
   "fix_diff": "--- a/demo_app/db.py\n+++ b/demo_app/db.py\n@@ -17,9 +17,8 @@ def get_user_display_name(user_id: str) -> str:\n             \"CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL)\"\n         )\n         conn.commit()\n-        # BUG EV-002: string interpolation enables SQL injection.\n-        query = f\"SELECT name FROM users WHERE id = '{user_id}'\"\n-        cur.execute(query)\n+        # EV-002 fix: parameterized query; user input is never interpolated.\n+        cur.execute(\"SELECT name FROM users WHERE id = ?\", (user_id,))\n         row = cur.fetchone()\n         return row[0] if row else \"\"\n     finally:\n",
   "test_before": {
     "exit_code": 1,

@@ -19,7 +19,7 @@ sys.path.insert(0, str(REPO))
 from evidence_gate.gate import run_gate  # noqa: E402
 from evidence_gate.model_client import MockFixModel  # noqa: E402
 
-SEED_MODEL = "seed/hand-written-fix (not model output)"
+SEED_MODEL = "seed (hand-written, mocked model)"
 IDS = ("EV-001", "EV-002", "EV-003")
 DOCS = REPO / "docs" / "index.html"
 START = '<script id="replay-data" type="application/json">\n'

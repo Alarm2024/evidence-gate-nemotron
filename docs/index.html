@@ -33,12 +33,56 @@
     section { margin: 1.5rem 0; }
     label { font-weight: 600; display: block; margin-bottom: 0.25rem; }
     select { margin-bottom: 1rem; padding: 0.35rem; }
+    .verify-box {
+      background: #eff6ff;
+      border: 1px solid #93c5fd;
+      border-radius: 0.5rem;
+      padding: 1rem 1.1rem;
+      margin: 1.25rem 0;
+    }
+    .verify-box h2 { font-size: 1rem; margin: 0 0 0.5rem; }
+    .verify-box code { font-size: 0.9rem; }
+    .seed-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0 2rem;
+    }
+    .seed-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      background: #fff;
+      box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+    }
+    .seed-card h3 { margin: 0 0 0.35rem; font-size: 1.1rem; }
+    .seed-card .tag {
+      display: inline-block;
+      font-size: 0.75rem;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 0.15rem 0.45rem;
+      border-radius: 0.35rem;
+      margin-bottom: 0.5rem;
+    }
+    .seed-card .reason { font-size: 0.9rem; margin: 0.5rem 0 0; color: #334155; }
   </style>
 </head>
 <body>
   <h1>Evidence Gate — offline replay</h1>
   <p>Step through a stored run: exploit test before/after, fix diff, and verdict. All data is inlined in this page; it makes no network calls.</p>
-  <p><small>Bundled seed replays use hand-written fix diffs run through the real gate (mocked model). They are not model output.</small></p>
+  <p><small>Bundled seed replays are labeled <strong>seed (hand-written, mocked model)</strong> — not Nemotron output.</small></p>
+
+  <aside class="verify-box" aria-labelledby="verify-heading">
+    <h2 id="verify-heading">How to verify</h2>
+    <p>Rerun any bundled replay offline (no API key). Evidence Gate reapplies the stored diff, reruns the exploit test, and recomputes the verdict. If it differs from the JSON, the CLI exits with code <code>3</code>.</p>
+    <pre><code>python -m evidence_gate run --replay replays/EV-001.json</code></pre>
+  </aside>
+
+  <section aria-label="Seed verdict cards">
+    <h2>Seed verdicts (screenshot-friendly)</h2>
+    <div class="seed-cards" id="seed-cards"></div>
+  </section>
 
   <label for="pick">Replay</label>
   <select id="pick" aria-label="Choose replay"></select>
@@ -72,8 +116,8 @@
 [
   {
     "finding_id": "EV-001",
-    "prompt_hash": "0f6a9aeea21de32f0cbb928f47fbafc8072e5807d683a6229414627d576c63e6",
-    "model": "seed/hand-written-fix (not model output)",
+    "prompt_hash": "4ce4fc48f72b030163822def396be93e8c560bbddb7c98f5c520bd0d51d80859",
+    "model": "seed (hand-written, mocked model)",
     "fix_diff": "--- a/demo_app/config.py\n+++ b/demo_app/config.py\n@@ -1,8 +1,10 @@\n \"\"\"Application configuration (EV-001: hard-coded secret).\"\"\"\n \n+import os\n+\n # BUG EV-001: secret must come from environment, not source control.\n-API_SECRET = \"hardcoded-demo-secret-do-not-ship\"\n+API_SECRET = os.environ.get(\"API_SECRET\", \"\")\n \n \n def get_api_secret() -> str:\n     return API_SECRET\n",
     "test_before": {
       "exit_code": 1,
@@ -93,8 +137,8 @@
   },
   {
     "finding_id": "EV-002",
-    "prompt_hash": "3abab41aded452b1eb0ece86b37750056afa5fc016729e70787193ca57cff0f8",
-    "model": "seed/hand-written-fix (not model output)",
+    "prompt_hash": "6e26d62915b2bb69a64a482ab8c4241830e44d573270e994de9a4aec482221d7",
+    "model": "seed (hand-written, mocked model)",
     "fix_diff": "--- a/demo_app/db.py\n+++ b/demo_app/db.py\n@@ -17,9 +17,8 @@ def get_user_display_name(user_id: str) -> str:\n             \"CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL)\"\n         )\n         conn.commit()\n-        # BUG EV-002: string interpolation enables SQL injection.\n-        query = f\"SELECT name FROM users WHERE id = '{user_id}'\"\n-        cur.execute(query)\n+        # EV-002 fix: parameterized query; user input is never interpolated.\n+        cur.execute(\"SELECT name FROM users WHERE id = ?\", (user_id,))\n         row = cur.fetchone()\n         return row[0] if row else \"\"\n     finally:\n",
     "test_before": {
       "exit_code": 1,
@@ -114,8 +158,8 @@
   },
   {
     "finding_id": "EV-003",
-    "prompt_hash": "59aa274ffecb13b4586b5098cac746b37bfb128f2af9ee1bb87ce8c597301740",
-    "model": "seed/hand-written-fix (not model output)",
+    "prompt_hash": "c676804a72093238e73a2a46824a0d2b374cb020f1fa46a14005c9efda838dc2",
+    "model": "seed (hand-written, mocked model)",
     "fix_diff": "--- a/demo_app/files.py\n+++ b/demo_app/files.py\n@@ -9,6 +9,9 @@ _STORAGE = Path(__file__).resolve().parent / \"storage\"\n \n def read_user_file(relative_name: str) -> str:\n     _STORAGE.mkdir(parents=True, exist_ok=True)\n-    # BUG EV-003: no normalization allows path traversal.\n-    target = _STORAGE / relative_name\n+    # EV-003 fix: resolve the path and require it to stay under storage.\n+    root = _STORAGE.resolve()\n+    target = (root / relative_name).resolve()\n+    if not target.is_relative_to(root):\n+        raise ValueError(\"Path escapes storage root\")\n     return target.read_text(encoding=\"utf-8\")\n",
     "test_before": {
       "exit_code": 1,
@@ -173,6 +217,19 @@
 
     pick.addEventListener("change", () => render(Number(pick.value)));
     render(0);
+
+    const cards = document.getElementById("seed-cards");
+    replays.forEach((r) => {
+      const card = document.createElement("article");
+      card.className = "seed-card";
+      const vClass = r.verdict === "PROVEN" ? "proven" : r.verdict === "OUT OF SCOPE" ? "scope" : "not";
+      card.innerHTML =
+        "<h3>" + r.finding_id + "</h3>" +
+        '<span class="tag">seed (hand-written, mocked model)</span><br />' +
+        '<span class="verdict ' + vClass + '">' + r.verdict + "</span>" +
+        '<p class="reason">' + r.reason + "</p>";
+      cards.appendChild(card);
+    });
   </script>
 </body>
 </html>

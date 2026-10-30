@@ -10,6 +10,16 @@ Each run yields **PROVEN**, **NOT PROVEN**, or **OUT OF SCOPE**, with a short re
 
 **Author:** Wyndham Heaven (elghaly) · **License:** MIT
 
+## Quickstart
+
+```bash
+python -m pip install -e ".[dev]"
+python -m evidence_gate run --replay replays/EV-001.json
+NEBIUS_API_KEY=your_key python -m evidence_gate run --finding findings/seed/EV-001.md
+```
+
+**Main Nemotron model:** `nvidia/nemotron-3-super-120b-a12b` · **Offline demo (GitHub Pages):** [alarm2024.github.io/evidence-gate-nemotron](https://alarm2024.github.io/evidence-gate-nemotron/)
+
 > **Note:** Upstream Exploit-to-Evidence demo code was not present in this repository; this project includes a rebuilt `demo_app` with seed findings **EV-001** (hard-coded secret), **EV-002** (SQL injection), and **EV-003** (path traversal).
 >
 > **The EV-001 secret is planted, not real.** `demo_app/config.py:4` holds the string `hardcoded-demo-secret-do-not-ship` on purpose: it is the bug EV-001 exists to find. It is not a credential for any service. The file is left as is because the seed fix (`tests/fixtures/seed_fixes/EV-001.diff`) and the replay `replays/EV-001.json` are recorded against it byte for byte.
@@ -47,7 +57,7 @@ python -m evidence_gate run --replay replays/EV-001.json
 
 Replay mode re-applies the stored diff in a temporary copy, reruns the exploit test, and recomputes the verdict. If it differs from the recorded verdict the CLI exits with code 3. Replay mode never imports the `openai` client.
 
-The bundled `replays/EV-00*.json` are **seed replays**: hand-written fix diffs (`tests/fixtures/seed_fixes/`) run through the real gate with a mocked model. They are not model output. A keyed run overwrites `replays/EV-xxx.json` with a Nemotron run. Rebuild seeds and the inlined site data with `python scripts/make_seed_replays.py`.
+The bundled `replays/EV-00*.json` are labeled **`seed (hand-written, mocked model)`**: hand-written fix diffs (`tests/fixtures/seed_fixes/`) run through the real gate with a mocked model. They are not model output. A keyed run overwrites `replays/EV-xxx.json` with a Nemotron run; use `scripts/record_model_replay.sh` to save a model run under `replays/model/` without losing the seed. Rebuild seeds and the inlined site data with `python scripts/make_seed_replays.py`.
 
 ## Tests
 
@@ -59,7 +69,7 @@ Tests use a mocked model and cover all three verdicts. Replay tests run the CLI 
 
 ## Demo site
 
-Open [`docs/index.html`](docs/index.html) on GitHub Pages to step through the bundled replays in the browser. Data is inlined; the page makes no network calls. Pages source: `main` branch, `/docs` folder.
+Open [the GitHub Pages viewer](https://alarm2024.github.io/evidence-gate-nemotron/) or [`docs/index.html`](docs/index.html) locally to step through the bundled replays in the browser. Data is inlined; the page makes no network calls. Pages source: `main` branch, `/docs` folder.
 
 ## Hackathon
 

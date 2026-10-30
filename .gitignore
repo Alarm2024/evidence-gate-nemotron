@@ -8,3 +8,4 @@ evidence_gate.egg-info/
 dist/
 build/
 demo_app/demo.db
+replays/model/*.json
