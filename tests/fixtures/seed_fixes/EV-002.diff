@@ -1,0 +1,14 @@
+--- a/demo_app/db.py
++++ b/demo_app/db.py
+@@ -17,9 +17,8 @@ def get_user_display_name(user_id: str) -> str:
+             "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL)"
+         )
+         conn.commit()
+-        # BUG EV-002: string interpolation enables SQL injection.
+-        query = f"SELECT name FROM users WHERE id = '{user_id}'"
+-        cur.execute(query)
++        # EV-002 fix: parameterized query; user input is never interpolated.
++        cur.execute("SELECT name FROM users WHERE id = ?", (user_id,))
+         row = cur.fetchone()
+         return row[0] if row else ""
+     finally:

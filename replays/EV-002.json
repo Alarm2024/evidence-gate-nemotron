@@ -1,0 +1,21 @@
+{
+  "finding_id": "EV-002",
+  "prompt_hash": "3abab41aded452b1eb0ece86b37750056afa5fc016729e70787193ca57cff0f8",
+  "model": "seed/hand-written-fix (not model output)",
+  "fix_diff": "--- a/demo_app/db.py\n+++ b/demo_app/db.py\n@@ -17,9 +17,8 @@ def get_user_display_name(user_id: str) -> str:\n             \"CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL)\"\n         )\n         conn.commit()\n-        # BUG EV-002: string interpolation enables SQL injection.\n-        query = f\"SELECT name FROM users WHERE id = '{user_id}'\"\n-        cur.execute(query)\n+        # EV-002 fix: parameterized query; user input is never interpolated.\n+        cur.execute(\"SELECT name FROM users WHERE id = ?\", (user_id,))\n         row = cur.fetchone()\n         return row[0] if row else \"\"\n     finally:\n",
+  "test_before": {
+    "exit_code": 1,
+    "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n______________________ test_db_uses_parameterized_queries ______________________\ntests/test_ev002_sqli.py:14: in test_db_uses_parameterized_queries\n    assert \"f\\\"SELECT\" not in source and \"f'SELECT\" not in source, (\nE   AssertionError: SQL built with f-string; use parameterized execute()\nE   assert ('f\"SELECT' not in '\"\"\"Tiny dat...nn.close()\\n'\nE     \nE     'f\"SELECT' is contained here:\nE         query = f\"SELECT name FROM users WHERE id = '{user_id}'\"\nE     ?           ++++++++\nE               cur.execute(query)\nE               row = cur.fetchone()\nE               return row[0] if row else \"\"\nE           finally:\nE               conn.close())\n=========================== short test summary info ============================\nFAILED tests/test_ev002_sqli.py::test_db_uses_parameterized_queries - Asserti...\n1 failed in 0.01s\n",
+    "stderr": ""
+  },
+  "test_after": {
+    "exit_code": 0,
+    "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+    "stderr": ""
+  },
+  "verdict": "PROVEN",
+  "reason": "Exploit test failed before and passed after; diff stayed in scope",
+  "affected_files": [
+    "demo_app/db.py"
+  ]
+}

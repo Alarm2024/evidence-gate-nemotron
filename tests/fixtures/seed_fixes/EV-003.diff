@@ -1,0 +1,14 @@
+--- a/demo_app/files.py
++++ b/demo_app/files.py
+@@ -9,6 +9,9 @@ _STORAGE = Path(__file__).resolve().parent / "storage"
+ 
+ def read_user_file(relative_name: str) -> str:
+     _STORAGE.mkdir(parents=True, exist_ok=True)
+-    # BUG EV-003: no normalization allows path traversal.
+-    target = _STORAGE / relative_name
++    # EV-003 fix: resolve the path and require it to stay under storage.
++    root = _STORAGE.resolve()
++    target = (root / relative_name).resolve()
++    if not target.is_relative_to(root):
++        raise ValueError("Path escapes storage root")
+     return target.read_text(encoding="utf-8")

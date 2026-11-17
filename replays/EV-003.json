@@ -1,0 +1,21 @@
+{
+  "finding_id": "EV-003",
+  "prompt_hash": "59aa274ffecb13b4586b5098cac746b37bfb128f2af9ee1bb87ce8c597301740",
+  "model": "seed/hand-written-fix (not model output)",
+  "fix_diff": "--- a/demo_app/files.py\n+++ b/demo_app/files.py\n@@ -9,6 +9,9 @@ _STORAGE = Path(__file__).resolve().parent / \"storage\"\n \n def read_user_file(relative_name: str) -> str:\n     _STORAGE.mkdir(parents=True, exist_ok=True)\n-    # BUG EV-003: no normalization allows path traversal.\n-    target = _STORAGE / relative_name\n+    # EV-003 fix: resolve the path and require it to stay under storage.\n+    root = _STORAGE.resolve()\n+    target = (root / relative_name).resolve()\n+    if not target.is_relative_to(root):\n+        raise ValueError(\"Path escapes storage root\")\n     return target.read_text(encoding=\"utf-8\")\n",
+  "test_before": {
+    "exit_code": 1,
+    "stdout": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_________________________ test_path_traversal_blocked __________________________\ntests/test_ev003_path.py:16: in test_path_traversal_blocked\n    assert \"relative_to\" in lowered or \"is_relative_to\" in lowered or \"commonpath\" in lowered, (\nE   AssertionError: Storage root must be enforced after resolve()\nE   assert ('relative_to' in '\"\"\"file helpers (ev-003: path traversal).\"\"\"\\n\\nfrom __future__ import annotations\\n\\nfrom pathlib import path\\n\\n_st...ization allows path traversal.\\n    target = _storage / relative_name\\n    return target.read_text(encoding=\"utf-8\")\\n' or 'is_relative_to' in '\"\"\"file helpers (ev-003: path traversal).\"\"\"\\n\\nfrom __future__ import annotations\\n\\nfrom pathlib import path\\n\\n_st...ization allows path traversal.\\n    target = _storage / relative_name\\n    return target.read_text(encoding=\"utf-8\")\\n' or 'commonpath' in '\"\"\"file helpers (ev-003: path traversal).\"\"\"\\n\\nfrom __future__ import annotations\\n\\nfrom pathlib import path\\n\\n_st...ization allows path traversal.\\n    target = _storage / relative_name\\n    return target.read_text(encoding=\"utf-8\")\\n')\n=========================== short test summary info ============================\nFAILED tests/test_ev003_path.py::test_path_traversal_blocked - AssertionError...\n1 failed in 0.01s\n",
+    "stderr": ""
+  },
+  "test_after": {
+    "exit_code": 0,
+    "stdout": ".                                                                        [100%]\n1 passed in 0.01s\n",
+    "stderr": ""
+  },
+  "verdict": "PROVEN",
+  "reason": "Exploit test failed before and passed after; diff stayed in scope",
+  "affected_files": [
+    "demo_app/files.py"
+  ]
+}
